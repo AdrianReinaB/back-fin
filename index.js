@@ -35,12 +35,25 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Credenciales inválidas" });
     }
 
-    const user = rows[0];
+     const user = rows[0];
 
+<<<<<<< HEAD
+=======
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(402).json({ error: "Credenciales inválidas" });
+    }
+
+
+>>>>>>> bc6e754cd94c9af384ee976a1af218c477ea689e
     if (user.activa === 1) {
       return res.status(403).json({ message: "Usuario desactivado, no puede iniciar sesión." });
     }
 
+<<<<<<< HEAD
+=======
+    delete user.password;
+>>>>>>> bc6e754cd94c9af384ee976a1af218c477ea689e
     res.json(rows[0]);
   } catch (error) {
     console.error(error);
@@ -294,7 +307,11 @@ app.post("/registerMovie", async (req, res) => {
 
     await db.execute(
       "INSERT INTO pelicula (titulo, sinopsis, clasificacion_edad, anio, director, genero, imagen) VALUES (?, ?, ?, ?, ?, ?, ?)",
+<<<<<<< HEAD
       [titulo, sinopsis, clasificacion_edad, anio, director, genero, imagen]
+=======
+      [titulo, sinopsis, clasificacion_edad, anio, director, genero, imagenBuffer]
+>>>>>>> bc6e754cd94c9af384ee976a1af218c477ea689e
     );
 
     res.status(201).json({
@@ -348,7 +365,11 @@ app.put("/movie/:id_pelicula", async (req, res) => {
            sinopsis = COALESCE(?, sinopsis),
            imagen = COALESCE(?, imagen)
        WHERE id_pelicula = ?`,
+<<<<<<< HEAD
       [titulo, genero, anio, director, clasificacion_edad, sinopsis, imagen, id_pelicula]
+=======
+      [titulo, genero, anio, director, clasificacion_edad, sinopsis, imagenBuffer, id_pelicula]
+>>>>>>> bc6e754cd94c9af384ee976a1af218c477ea689e
     );
 
     const [updated] = await db.execute(
@@ -683,6 +704,57 @@ app.get("/producto/:id_pelicula", async (req, res) => {
     res.status(500).json({ error: "Error al obtener pelicula" });
   }
 });
+
+app.get("/producto/:id_pelicula/disponibilidad", async (req, res) => {
+  const { id_pelicula } = req.params;
+
+  if (!id_pelicula) {
+    return res.status(400).json({ error: "No existe la película" });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT 
+          COUNT(*) AS total_productos,
+          SUM(CASE WHEN estado = 'disponible' THEN 1 ELSE 0 END) AS disponibles,
+          SUM(CASE WHEN estado = 'alquilado' THEN 1 ELSE 0 END) AS alquilados
+       FROM producto
+       WHERE pelicula_id_pelicula = ?`,
+      [id_pelicula]
+    );
+
+    res.json(rows[0]); // { total_productos, disponibles, alquilados }
+  } catch (error) {
+    console.error("Error al obtener disponibilidad:", error);
+    res.status(500).json({ error: "Error al obtener disponibilidad" });
+  }
+});
+
+app.get("/producto/disponibilidad", async (req, res) => {
+  const { id_pelicula } = req.query;
+
+  if (!id_pelicula) {
+    return res.status(400).json({ error: "No existe la película" });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT 
+          COUNT(*) AS total_productos,
+          SUM(CASE WHEN estado = 'disponible' THEN 1 ELSE 0 END) AS disponibles,
+          SUM(CASE WHEN estado = 'alquilado' THEN 1 ELSE 0 END) AS alquilados
+       FROM producto
+       WHERE pelicula_id_pelicula = ?`,
+      [id_pelicula]
+    );
+
+    res.json(rows[0]); // { total_productos, disponibles, alquilados }
+  } catch (error) {
+    console.error("Error al obtener disponibilidad:", error);
+    res.status(500).json({ error: "Error al obtener disponibilidad" });
+  }
+});
+
 
 // endpoint listado de los productos por cantidad
 app.get("/listproducto", async (req, res) => {
