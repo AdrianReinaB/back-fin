@@ -719,6 +719,31 @@ app.get("/producto/:id_pelicula", async (req, res) => {
   }
 });
 
+app.get("/producto/:id_pelicula/disponibilidad", async (req, res) => {
+  const { id_pelicula } = req.params;
+
+  if (!id_pelicula) {
+    return res.status(400).json({ error: "No existe la película" });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT 
+          COUNT(*) AS total_productos,
+          SUM(CASE WHEN estado = 'disponible' THEN 1 ELSE 0 END) AS disponibles,
+          SUM(CASE WHEN estado = 'alquilado' THEN 1 ELSE 0 END) AS alquilados
+       FROM producto
+       WHERE pelicula_id_pelicula = ?`,
+      [id_pelicula]
+    );
+
+    res.json(rows[0]); // { total_productos, disponibles, alquilados }
+  } catch (error) {
+    console.error("Error al obtener disponibilidad:", error);
+    res.status(500).json({ error: "Error al obtener disponibilidad" });
+  }
+});
+
 // endpoint listado de los productos por cantidad
 app.get("/listproducto", async (req, res) => {
 
