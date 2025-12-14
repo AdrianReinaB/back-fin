@@ -1,16 +1,16 @@
 import express from "express";
-import bodyParser from "body-parser";
 import connect from './dbConnection.mjs';
 import cors from "cors";
 import bcrypt from "bcrypt";
 
+// const app = express();
+
+// app.use(cors());
+
 const app = express();
-
-app.use(bodyParser.json({ limit: "50mb" }));
-app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
-
+app.use(cors());
+app.use(express.json()); 
 const db = await connect();
-
 
 function toMySQLDatetime(dateString) {
   const date = new Date(dateString);
@@ -18,20 +18,17 @@ function toMySQLDatetime(dateString) {
 }
 
 
-app.use(cors());
-
 // Endpoint de login
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  console.log("entra")
   if (!email || !password) {
     return res.status(400).json({ error: "Faltan credenciales" });
   }
 
   try {
     const [rows] = await db.execute(
-      "SELECT id_usuario, nombre, apellido, password, telefono, email, rol, credito, activa FROM usuario WHERE email = ?",
-      [email]
+      "SELECT id_usuario, nombre, apellido, password, telefono, email, rol, credito, activa FROM usuario WHERE email = ? AND password = ?",
+      [email, password]
     );
 
     if (rows.length === 0) {
@@ -40,19 +37,10 @@ app.post("/login", async (req, res) => {
 
     const user = rows[0];
 
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      console.log("pass mal")
-      return res.status(401).json({ error: "Credenciales inválidas" });
-    }
-
-
     if (user.activa === 1) {
       return res.status(403).json({ message: "Usuario desactivado, no puede iniciar sesión." });
     }
 
-    delete user.password;
-console.log("entra")
     res.json(rows[0]);
   } catch (error) {
     console.error(error);
@@ -77,11 +65,10 @@ app.post("/register", async (req, res) => {
       return res.status(409).json({ error: "El email ya está registrado" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);  
 
     const [result] = await db.execute(
       "INSERT INTO usuario (nombre, apellido, email, password, telefono, dni) VALUES (?, ?, ?, ?, ?, ?)",
-      [nombre, apellido, email, hashedPassword, telefono, dni]
+      [nombre, apellido, email, password, telefono, dni]
     );
 
     res.status(201).json({
@@ -157,12 +144,6 @@ app.put("/usuario/:id_usuario", async (req, res) => {
     password = password === "" ? null : password;
     dni = dni === "" ? null : dni;
 
-    let hashedPassword = null;
-
-    if (password && password.trim() !== "") {
-      hashedPassword = await bcrypt.hash(password, 10);
-    }
-
     await db.execute(
       `UPDATE usuario 
        SET nombre = COALESCE(?, nombre),
@@ -174,7 +155,7 @@ app.put("/usuario/:id_usuario", async (req, res) => {
            rol = COALESCE(?, rol),
            dni = COALESCE(?, dni)
        WHERE id_usuario = ?`,
-      [nombre, apellido, telefono, email, hashedPassword, null, rol, dni, id_usuario]
+      [nombre, apellido, telefono, email, password, null, rol, dni, id_usuario]
     );
 
     // Devolver el usuario actualizado
@@ -249,20 +230,16 @@ app.get("/peliculas", async (req, res) => {
     const [rows] = await db.execute("SELECT * FROM pelicula WHERE activa = 1");
 
     const peliculas = rows.map(p => {
-      let imagenBase64 = null;
-      if (p.imagen) {
-        imagenBase64 = Buffer.from(p.imagen).toString("base64");
-      }
 
       return {
         id_pelicula: p.id_pelicula,
         titulo: p.titulo,
         sinopsis: p.sinopsis,
         clasificacion_edad: p.clasificacion_edad,
-        año: p.año,
+        anio: p.anio,
         director: p.director,
         genero: p.genero,
-        imagen: imagenBase64
+        imagen: p.imagen
       };
     });
 
@@ -299,19 +276,13 @@ app.get("/pelicula/:id_pelicula", async (req, res) => {
 
 // Endpoint de register de pelicula
 app.post("/registerMovie", async (req, res) => {
-  const { titulo, sinopsis, clasificacion_edad, año, director, genero, imagen } = req.body;
+  const { titulo, sinopsis, clasificacion_edad, anio, director, genero, imagen } = req.body;
 
-  if (!titulo || !sinopsis || !clasificacion_edad || !año || !director || !genero || !imagen) {
+  if (!titulo || !sinopsis || !clasificacion_edad || !anio || !director || !genero || !imagen) {
     return res.status(400).json({ error: "Faltaron campos" });
   }
 
-  if (imagen.length > 1024 * 1024) {
-    return res.status(413).json({ error: "La imagen es demasiado grande" });
-  }
-
   try {
-
-    const imagenBuffer = Buffer.from(imagen, "base64");
 
     const [existing] = await db.execute(
       "SELECT titulo FROM pelicula WHERE titulo = ?",
@@ -322,15 +293,15 @@ app.post("/registerMovie", async (req, res) => {
     }
 
     await db.execute(
-      "INSERT INTO pelicula (titulo, sinopsis, clasificacion_edad, año, director, genero, imagen) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [titulo, sinopsis, clasificacion_edad, año, director, genero, imagenBuffer]
+      "INSERT INTO pelicula (titulo, sinopsis, clasificacion_edad, anio, director, genero, imagen) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [titulo, sinopsis, clasificacion_edad, anio, director, genero, imagen]
     );
 
     res.status(201).json({
       titulo,
       sinopsis,
       clasificacion_edad,
-      año,
+      anio,
       director,
       genero,
     });
@@ -343,14 +314,13 @@ app.post("/registerMovie", async (req, res) => {
 // endpoint editar pelicula
 app.put("/movie/:id_pelicula", async (req, res) => {
   const { id_pelicula } = req.params;
-  let { titulo, genero, año, director, clasificacion_edad, sinopsis, imagen } = req.body;
+  let { titulo, genero, anio, director, clasificacion_edad, sinopsis, imagen } = req.body;
 
   if (!id_pelicula) {
     return res.status(400).json({ error: "Falta el ID del usuario" });
   }
 
   try {
-    let imagenBuffer = Buffer.from(imagen, "base64");
     const [existing] = await db.execute(
       "SELECT id_pelicula FROM pelicula WHERE id_pelicula = ?",
       [id_pelicula]
@@ -362,27 +332,27 @@ app.put("/movie/:id_pelicula", async (req, res) => {
 
     titulo = titulo === "" ? null : titulo;
     genero = genero === "" ? null : genero;
-    año = año === "" ? null : año;
+    anio = anio === "" ? null : anio;
     director = director === "" ? null : director;
     clasificacion_edad = clasificacion_edad === "" ? null : clasificacion_edad;
     sinopsis = sinopsis === "" ? null : sinopsis;
-    imagenBuffer = imagenBuffer === "" ? null : imagenBuffer;
+    imagen = imagen === "" ? null : imagen;
 
     await db.execute(
       `UPDATE pelicula 
        SET titulo = COALESCE(?, titulo),
            genero = COALESCE(?, genero),
-           año = COALESCE(?, año),
+           anio = COALESCE(?, anio),
            director = COALESCE(?, director),
            clasificacion_edad = COALESCE(?, clasificacion_edad),
            sinopsis = COALESCE(?, sinopsis),
            imagen = COALESCE(?, imagen)
        WHERE id_pelicula = ?`,
-      [titulo, genero, año, director, clasificacion_edad, sinopsis, imagenBuffer, id_pelicula]
+      [titulo, genero, anio, director, clasificacion_edad, sinopsis, imagen, id_pelicula]
     );
 
     const [updated] = await db.execute(
-      "SELECT id_pelicula, titulo, genero, año, director, clasificacion_edad, sinopsis, imagen, activa FROM pelicula WHERE id_pelicula = ?",
+      "SELECT id_pelicula, titulo, genero, anio, director, clasificacion_edad, sinopsis, imagen, activa FROM pelicula WHERE id_pelicula = ?",
       [id_pelicula]
     );
 
@@ -648,10 +618,6 @@ app.get("/alquiler/usuario/:id_usuario", async (req, res) => {
     }
 
     const peliculas = rows.map(p => {
-      let imagenBase64 = null;
-      if (p.imagen) {
-        imagenBase64 = Buffer.from(p.imagen).toString("base64");
-      }
 
       return {
         id_producto: p.id_producto,
@@ -661,7 +627,7 @@ app.get("/alquiler/usuario/:id_usuario", async (req, res) => {
         fecha_fin: p.fecha_fin,
         estado: p.estado,
         usuario_id_usuario: p.usuario_id_usuario,
-        imagen: imagenBase64,
+        imagen: p.imagen,
         producto_id_producto: p.producto_id_producto
       };
     });
@@ -697,20 +663,16 @@ app.get("/producto/:id_pelicula", async (req, res) => {
     }
 
     const p = rows[0];
-    let imagenBase64 = null;
-    if (p.imagen) {
-      imagenBase64 = Buffer.from(p.imagen).toString("base64");
-    }
 
     const peliculas = {
       id_pelicula: p.id_pelicula,
       titulo: p.titulo,
       sinopsis: p.sinopsis,
       clasificacion_edad: p.clasificacion_edad,
-      año: p.año,
+      anio: p.anio,
       director: p.director,
       genero: p.genero,
-      imagen: imagenBase64,
+      imagen: p.imagen,
       disponibilidad: p.disponibilidad,
       activa: p.activa
     };
@@ -743,10 +705,6 @@ app.get("/listproducto", async (req, res) => {
     }
 
     const peliculas = rows.map(p => {
-      let imagenBase64 = null;
-      if (p.imagen) {
-        imagenBase64 = Buffer.from(p.imagen).toString("base64");
-      }
 
       return {
         id_pelicula: p.id_pelicula,
@@ -755,10 +713,10 @@ app.get("/listproducto", async (req, res) => {
         titulo: p.titulo,
         sinopsis: p.sinopsis,
         clasificacion_edad: p.clasificacion_edad,
-        año: p.año,
+        anio: p.anio,
         director: p.director,
         genero: p.genero,
-        imagen: imagenBase64,
+        imagen: p.imagen,
         disponibilidad: p.disponibilidad,
         activa: p.activa,
         alquilados: p.alquilados
@@ -1023,6 +981,12 @@ app.get("/alquileres", async (req, res) => {
 
 
 
-app.listen(3000, () => {
-  console.log("Server listening on port 3000");
+// app.listen(3000, () => {
+//   console.log("Server listening on port 3000");
+// });
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server listening on port ${PORT}`);
 });
