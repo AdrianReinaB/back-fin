@@ -29,8 +29,8 @@ app.post("/login", async (req, res) => {
 
   try {
     const [rows] = await db.execute(
-      "SELECT id_usuario, nombre, apellido, password, telefono, email, rol, credito, activa FROM usuario WHERE email = ? AND password = ?",
-      [email, password]
+      "SELECT id_usuario, nombre, apellido, password, telefono, email, rol, credito, activa FROM usuario WHERE email = ?",
+      [email]
     );
 
     if (rows.length === 0) {
@@ -39,17 +39,17 @@ app.post("/login", async (req, res) => {
 
      const user = rows[0];
 
-    // const validPassword = await bcrypt.compare(password, user.password);
-    // if (!validPassword) {
-    //   return res.status(401).json({ error: "Credenciales inválidas" });
-    // }
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ error: "Credenciales inválidas" });
+    }
 
 
     if (user.activa === 1) {
       return res.status(403).json({ message: "Usuario desactivado, no puede iniciar sesión." });
     }
 
-    //delete user.password;
+    delete user.password;
     res.json(rows[0]);
   } catch (error) {
     console.error(error);
