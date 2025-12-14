@@ -23,36 +23,33 @@ app.use(cors());
 // Endpoint de login
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  console.log("entra")
   if (!email || !password) {
     return res.status(400).json({ error: "Faltan credenciales" });
   }
 
   try {
     const [rows] = await db.execute(
-      "SELECT id_usuario, nombre, apellido, password, telefono, email, rol, credito, activa FROM usuario WHERE email = ?",
-      [email]
+      "SELECT id_usuario, nombre, apellido, password, telefono, email, rol, credito, activa FROM usuario WHERE email = ? AND password = ?",
+      [email, password]
     );
 
     if (rows.length === 0) {
       return res.status(401).json({ error: "Credenciales inválidas" });
     }
 
-    const user = rows[0];
+     const user = rows[0];
 
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      console.log("pass mal")
-      return res.status(401).json({ error: "Credenciales inválidas" });
-    }
+    // const validPassword = await bcrypt.compare(password, user.password);
+    // if (!validPassword) {
+    //   return res.status(401).json({ error: "Credenciales inválidas" });
+    // }
 
 
     if (user.activa === 1) {
       return res.status(403).json({ message: "Usuario desactivado, no puede iniciar sesión." });
     }
 
-    delete user.password;
-console.log("entra")
+    //delete user.password;
     res.json(rows[0]);
   } catch (error) {
     console.error(error);
