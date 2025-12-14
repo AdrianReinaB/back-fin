@@ -694,10 +694,6 @@ app.get("/producto/:id_pelicula", async (req, res) => {
     }
 
     const p = rows[0];
-    let imagenBase64 = null;
-    if (p.imagen) {
-      imagenBase64 = Buffer.from(p.imagen).toString("base64");
-    }
 
     const peliculas = {
       id_pelicula: p.id_pelicula,
@@ -707,7 +703,7 @@ app.get("/producto/:id_pelicula", async (req, res) => {
       anio: p.anio,
       director: p.director,
       genero: p.genero,
-      imagen: imagenBase64,
+      imagen: p.imagen,
       disponibilidad: p.disponibilidad,
       activa: p.activa
     };
@@ -744,6 +740,32 @@ app.get("/producto/:id_pelicula/disponibilidad", async (req, res) => {
   }
 });
 
+app.get("/producto/disponibilidad", async (req, res) => {
+  const { id_pelicula } = req.query;
+
+  if (!id_pelicula) {
+    return res.status(400).json({ error: "No existe la película" });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT 
+          COUNT(*) AS total_productos,
+          SUM(CASE WHEN estado = 'disponible' THEN 1 ELSE 0 END) AS disponibles,
+          SUM(CASE WHEN estado = 'alquilado' THEN 1 ELSE 0 END) AS alquilados
+       FROM producto
+       WHERE pelicula_id_pelicula = ?`,
+      [id_pelicula]
+    );
+
+    res.json(rows[0]); // { total_productos, disponibles, alquilados }
+  } catch (error) {
+    console.error("Error al obtener disponibilidad:", error);
+    res.status(500).json({ error: "Error al obtener disponibilidad" });
+  }
+});
+
+
 // endpoint listado de los productos por cantidad
 app.get("/listproducto", async (req, res) => {
 
@@ -765,10 +787,6 @@ app.get("/listproducto", async (req, res) => {
     }
 
     const peliculas = rows.map(p => {
-      let imagenBase64 = null;
-      if (p.imagen) {
-        imagenBase64 = Buffer.from(p.imagen).toString("base64");
-      }
 
       return {
         id_pelicula: p.id_pelicula,
@@ -780,7 +798,7 @@ app.get("/listproducto", async (req, res) => {
         anio: p.anio,
         director: p.director,
         genero: p.genero,
-        imagen: imagenBase64,
+        imagen: p.imagen,
         disponibilidad: p.disponibilidad,
         activa: p.activa,
         alquilados: p.alquilados
