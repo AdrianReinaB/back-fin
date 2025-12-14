@@ -41,7 +41,7 @@ app.post("/login", async (req, res) => {
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      return res.status(401).json({ error: "Credenciales inválidas" });
+      return res.status(402).json({ error: "Credenciales inválidas" });
     }
 
 
