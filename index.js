@@ -256,7 +256,7 @@ app.get("/peliculas", async (req, res) => {
         titulo: p.titulo,
         sinopsis: p.sinopsis,
         clasificacion_edad: p.clasificacion_edad,
-        año: p.anio,
+        anio: p.anio,
         director: p.director,
         genero: p.genero,
         imagen: imagenBase64
@@ -296,9 +296,9 @@ app.get("/pelicula/:id_pelicula", async (req, res) => {
 
 // Endpoint de register de pelicula
 app.post("/registerMovie", async (req, res) => {
-  const { titulo, sinopsis, clasificacion_edad, año, director, genero, imagen } = req.body;
+  const { titulo, sinopsis, clasificacion_edad, anio, director, genero, imagen } = req.body;
 
-  if (!titulo || !sinopsis || !clasificacion_edad || !año || !director || !genero || !imagen) {
+  if (!titulo || !sinopsis || !clasificacion_edad || !anio || !director || !genero || !imagen) {
     return res.status(400).json({ error: "Faltaron campos" });
   }
 
@@ -319,15 +319,15 @@ app.post("/registerMovie", async (req, res) => {
     }
 
     await db.execute(
-      "INSERT INTO pelicula (titulo, sinopsis, clasificacion_edad, año, director, genero, imagen) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [titulo, sinopsis, clasificacion_edad, año, director, genero, imagenBuffer]
+      "INSERT INTO pelicula (titulo, sinopsis, clasificacion_edad, anio, director, genero, imagen) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [titulo, sinopsis, clasificacion_edad, anio, director, genero, imagenBuffer]
     );
 
     res.status(201).json({
       titulo,
       sinopsis,
       clasificacion_edad,
-      año,
+      anio,
       director,
       genero,
     });
@@ -340,7 +340,7 @@ app.post("/registerMovie", async (req, res) => {
 // endpoint editar pelicula
 app.put("/movie/:id_pelicula", async (req, res) => {
   const { id_pelicula } = req.params;
-  let { titulo, genero, año, director, clasificacion_edad, sinopsis, imagen } = req.body;
+  let { titulo, genero, anio, director, clasificacion_edad, sinopsis, imagen } = req.body;
 
   if (!id_pelicula) {
     return res.status(400).json({ error: "Falta el ID del usuario" });
@@ -359,7 +359,7 @@ app.put("/movie/:id_pelicula", async (req, res) => {
 
     titulo = titulo === "" ? null : titulo;
     genero = genero === "" ? null : genero;
-    año = año === "" ? null : año;
+    anio = anio === "" ? null : anio;
     director = director === "" ? null : director;
     clasificacion_edad = clasificacion_edad === "" ? null : clasificacion_edad;
     sinopsis = sinopsis === "" ? null : sinopsis;
@@ -369,17 +369,17 @@ app.put("/movie/:id_pelicula", async (req, res) => {
       `UPDATE pelicula 
        SET titulo = COALESCE(?, titulo),
            genero = COALESCE(?, genero),
-           año = COALESCE(?, año),
+           anio = COALESCE(?, anio),
            director = COALESCE(?, director),
            clasificacion_edad = COALESCE(?, clasificacion_edad),
            sinopsis = COALESCE(?, sinopsis),
            imagen = COALESCE(?, imagen)
        WHERE id_pelicula = ?`,
-      [titulo, genero, año, director, clasificacion_edad, sinopsis, imagenBuffer, id_pelicula]
+      [titulo, genero, anio, director, clasificacion_edad, sinopsis, imagenBuffer, id_pelicula]
     );
 
     const [updated] = await db.execute(
-      "SELECT id_pelicula, titulo, genero, año, director, clasificacion_edad, sinopsis, imagen, activa FROM pelicula WHERE id_pelicula = ?",
+      "SELECT id_pelicula, titulo, genero, anio, director, clasificacion_edad, sinopsis, imagen, activa FROM pelicula WHERE id_pelicula = ?",
       [id_pelicula]
     );
 
@@ -704,7 +704,7 @@ app.get("/producto/:id_pelicula", async (req, res) => {
       titulo: p.titulo,
       sinopsis: p.sinopsis,
       clasificacion_edad: p.clasificacion_edad,
-      año: p.anio,
+      anio: p.anio,
       director: p.director,
       genero: p.genero,
       imagen: imagenBase64,
@@ -752,7 +752,7 @@ app.get("/listproducto", async (req, res) => {
         titulo: p.titulo,
         sinopsis: p.sinopsis,
         clasificacion_edad: p.clasificacion_edad,
-        año: p.anio,
+        anio: p.anio,
         director: p.director,
         genero: p.genero,
         imagen: imagenBase64,
